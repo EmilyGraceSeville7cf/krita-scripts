@@ -1,2 +1,3 @@
-# krita-scripts
-Scripts for Krita.
+# Krita scripts
+
+My collection of simple automation scripts for Krita.
