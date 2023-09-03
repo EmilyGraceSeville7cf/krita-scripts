@@ -68,7 +68,7 @@ def validate_options():
         warn_when_not_type(["renameLayerOptions", "replacePunctuationOptions", "delimiter"], str),
         warn_when_not_type("renameTransformMask", bool),
         warn_when_not_type("renameTransformMaskOptions", dict),
-        warn_when_not_type(["renameTransformMaskOptions", "words"], str)])
+        warn_when_not_type(["renameTransformMaskOptions", "words"], list)])
 
 def rename_background_layer(layers):
     name = options["renameBackgroundLayerOptions"]["name"]
