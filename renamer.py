@@ -14,7 +14,7 @@ options = {
     
     # Whether to rename layers
     "renameLayer": True,
-    "renameLayersOptions": {
+    "renameLayerOptions": {
         # Whether to squeeze spaces
         "shorten": True,
         # Whether to replace punctuation by replacePunctuationOptions.delimiter
@@ -44,36 +44,62 @@ def warn_when_not(condition, text):
     
     return condition
 
-def renameBackgroundLayer(layers):
+def warn_when_not_type(key, type):
+    keys = key
+    if isinstance(key, str):
+        keys = [key]
+    
+    result_key = options[keys[0]]
+    for i in range(1, len(keys)):
+        result_key = result_key[keys[i]]
+    
+    key = ".".join(keys)
+    return warn_when_not((result_key is not None) and isinstance(result_key, type), f"{key} should be {type}")
+
+def validate_options():
+    return all([warn_when_not(options is not None, "Options can't be None"),
+        warn_when_not_type("renameBackgroundLayer", bool),
+        warn_when_not_type("renameBackgroundLayerOptions", dict),
+        warn_when_not_type(["renameBackgroundLayerOptions", "name"], str),
+        warn_when_not_type("renameLayer", bool),
+        warn_when_not_type("renameLayerOptions", dict),
+        warn_when_not_type(["renameLayerOptions", "shorten"], bool),
+        warn_when_not_type(["renameLayerOptions", "replacePunctuation"], bool),
+        warn_when_not_type(["renameLayerOptions", "replacePunctuationOptions", "delimiter"], str),
+        warn_when_not_type("renameTransformMask", bool),
+        warn_when_not_type("renameTransformMaskOptions", dict),
+        warn_when_not_type(["renameTransformMaskOptions", "words"], str)])
+
+def rename_background_layer(layers):
     name = options["renameBackgroundLayerOptions"]["name"]
     background = layers[0]
     if not warn_when_not(background.name() == name, f"'{background.name()}' background layer should be named '{name}'"):
         background.setName(name)
 
-def renameLayers(layers):
+def rename_layers(layers):
     for layer in layers:
         name = layer.name()
-        if options["renameLayersOptions"]["replacePunctuation"]:
-            delimiter = re.escape(options["renameLayersOptions"]["replacePunctuationOptions"]["delimiter"])
+        if options["renameLayerOptions"]["replacePunctuation"]:
+            delimiter = re.escape(options["renameLayerOptions"]["replacePunctuationOptions"]["delimiter"])
             name = re.sub("[" + re.escape(string.punctuation) + "]", delimiter, name)
             name = re.sub(f"({delimiter})+", delimiter, name)
             name = re.sub(f"\s+{delimiter}", f"{delimiter} ", name)
-        if options["renameLayersOptions"]["shorten"]:
+        if options["renameLayerOptions"]["shorten"]:
             name = re.sub("\s+", " ", name)
 
         if not warn_when_not(layer.name() == name, f"'{layer.name()}' layer should be named '{name}'"):
             layer.setName(name)
 
         if layer.childNodes() != []:
-            renameLayers(layer.childNodes())
+            rename_layers(layer.childNodes())
 
-def renameTransformMasks(layers):
+def rename_transform_masks(layers):
     if not warn_when_not(options["renameLayer"], "'renameLayer' should be turned on to use 'renameTransformMask'"):
         return
 
     for layer in layers:        
         if layer.type() == "transformmask":
-            delimiter = options["renameLayersOptions"]["replacePunctuationOptions"]["delimiter"]
+            delimiter = options["renameLayerOptions"]["replacePunctuationOptions"]["delimiter"]
             words = layer.name().split(delimiter)
             allowed_words = options["renameTransformMaskOptions"]["words"]
             words = list(set([word.strip() for word in words if word.strip() in allowed_words]))
@@ -86,15 +112,16 @@ def renameTransformMasks(layers):
                     layer.setName(name)
 
         if layer.childNodes() != []:
-            renameTransformMasks(layer.childNodes())
+            rename_transform_masks(layer.childNodes())
 
 
 document = krita.Krita.instance().activeDocument()
-top_layers = document.topLevelNodes()
+if warn_when_not(document is not None, "Document should be opened") and validate_options():
+    top_layers = document.topLevelNodes()
 
-if options["renameBackgroundLayer"]:
-    renameBackgroundLayer(top_layers)
-if options["renameLayer"]:
-    renameLayers(top_layers)
-if options["renameTransformMask"]:
-    renameTransformMasks(top_layers)
+    if options["renameBackgroundLayer"]:
+        rename_background_layer(top_layers)
+    if options["renameLayer"]:
+        rename_layers(top_layers)
+    if options["renameTransformMask"]:
+        rename_transform_masks(top_layers)
