@@ -2,6 +2,7 @@ import krita
 import re
 import string
 
+# Allows to rename several layers at once to unify naming schema in a file.
 # All options to configure script behavior.
 options = {
      # Whether to rename the bottom layer to renameBackgroundLayerOptions.name
