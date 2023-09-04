@@ -15,8 +15,17 @@ options = {
     # Whether to rename layers
     "renameLayer": True,
     "renameLayerOptions": {
+        # Layers to include
+        # If a layer is included it can be excluded via exclude
+        "include": [".*"],
+        
+        # Layers to exclude
+        # If a layer is excluded via exclude it can't be included via include
+        "exclude": [],
+        
         # Whether to squeeze spaces
         "shorten": True,
+        
         # Whether to replace punctuation by replacePunctuationOptions.delimiter
         "replacePunctuation": True,
         "replacePunctuationOptions": {
@@ -32,6 +41,14 @@ options = {
     # Enabling this options implies that renameLayer is on. If not, it fails to work.
     "renameTransformMask": True,
     "renameTransformMaskOptions": {
+        # Transform masks to include
+        # If a transform mask is included it can be excluded via exclude
+        "include": [".*"],
+        
+        # Transform masks to exclude
+        # If a transform mask is excluded via exclude it can't be included via include
+        "exclude": [],
+        
         # Words for transform masks
         "words": ["Move", "Rotate", "Scale"]
      }
@@ -63,12 +80,23 @@ def validate_options():
         warn_when_not_type(["renameBackgroundLayerOptions", "name"], str),
         warn_when_not_type("renameLayer", bool),
         warn_when_not_type("renameLayerOptions", dict),
+        warn_when_not_type(["renameLayerOptions", "include"], list),
+        warn_when_not_type(["renameLayerOptions", "exclude"], list),
         warn_when_not_type(["renameLayerOptions", "shorten"], bool),
         warn_when_not_type(["renameLayerOptions", "replacePunctuation"], bool),
         warn_when_not_type(["renameLayerOptions", "replacePunctuationOptions", "delimiter"], str),
         warn_when_not_type("renameTransformMask", bool),
         warn_when_not_type("renameTransformMaskOptions", dict),
+        warn_when_not_type(["renameTransformMaskOptions", "include"], list),
+        warn_when_not_type(["renameTransformMaskOptions", "exclude"], list),
         warn_when_not_type(["renameTransformMaskOptions", "words"], list)])
+
+def is_affected(layer, includes, excludes):
+    is_included = any([re.match(include, layer) for include in includes])
+    if excludes == []:
+        return is_included
+    return is_included and not any([re.match(exclude, layer) for exclude in excludes])
+    
 
 def rename_background_layer(layers):
     name = options["renameBackgroundLayerOptions"]["name"]
@@ -79,16 +107,17 @@ def rename_background_layer(layers):
 def rename_layers(layers):
     for layer in layers:
         name = layer.name()
-        if options["renameLayerOptions"]["replacePunctuation"]:
-            delimiter = re.escape(options["renameLayerOptions"]["replacePunctuationOptions"]["delimiter"])
-            name = re.sub("[" + re.escape(string.punctuation) + "]", delimiter, name)
-            name = re.sub(f"({delimiter})+", delimiter, name)
-            name = re.sub(f"\s+{delimiter}", f"{delimiter} ", name)
-        if options["renameLayerOptions"]["shorten"]:
-            name = re.sub("\s+", " ", name)
+        if is_affected(name, options["renameLayerOptions"]["include"], options["renameLayerOptions"]["exclude"]):
+            if options["renameLayerOptions"]["replacePunctuation"]:
+                delimiter = re.escape(options["renameLayerOptions"]["replacePunctuationOptions"]["delimiter"])
+                name = re.sub("[" + re.escape(string.punctuation) + "]", delimiter, name)
+                name = re.sub(f"({delimiter})+", delimiter, name)
+                name = re.sub(f"\s+{delimiter}", f"{delimiter} ", name)
+            if options["renameLayerOptions"]["shorten"]:
+                name = re.sub("\s+", " ", name)
 
-        if not warn_when_not(layer.name() == name, f"'{layer.name()}' layer should be named '{name}'"):
-            layer.setName(name)
+            if not warn_when_not(layer.name() == name, f"'{layer.name()}' layer should be named '{name}'"):
+                layer.setName(name)
 
         if layer.childNodes() != []:
             rename_layers(layer.childNodes())
@@ -97,10 +126,11 @@ def rename_transform_masks(layers):
     if not warn_when_not(options["renameLayer"], "'renameLayer' should be turned on to use 'renameTransformMask'"):
         return
 
-    for layer in layers:        
-        if layer.type() == "transformmask":
+    for layer in layers:
+        name = layer.name()
+        if is_affected(name, options["renameTransformMaskOptions"]["include"], options["renameTransformMaskOptions"]["exclude"]) and layer.type() == "transformmask":
             delimiter = options["renameLayerOptions"]["replacePunctuationOptions"]["delimiter"]
-            words = layer.name().split(delimiter)
+            words = name.split(delimiter)
             allowed_words = options["renameTransformMaskOptions"]["words"]
             words = list(set([word.strip() for word in words if word.strip() in allowed_words]))
             words = [word for word in allowed_words if word in words]
