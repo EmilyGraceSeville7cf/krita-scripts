@@ -73,6 +73,12 @@ def warn_when_not_type(key, type):
     key = ".".join(keys)
     return warn_when_not((result_key is not None) and isinstance(result_key, type), f"{key} should be {type}")
 
+def warn_when_not_item_type(value, index, type):
+    return warn_when_not((value is not None) and isinstance(value, type), f"{value} ({index}th item) should be {type}")
+
+def warn_when_at_least_one_not_item_type(values, type):
+    return all([warn_when_not_item_type(item, i, type) for i, item in enumerate(values)])
+
 def validate_options():
     return all([warn_when_not(options is not None, "Options can't be None"),
         warn_when_not_type("renameBackgroundLayer", bool),
@@ -81,6 +87,8 @@ def validate_options():
         warn_when_not_type("renameLayer", bool),
         warn_when_not_type("renameLayerOptions", dict),
         warn_when_not_type(["renameLayerOptions", "include"], list),
+        warn_when_at_least_one_not_item_type(options["renameLayerOptions"]["include"], str),
+        warn_when_at_least_one_not_item_type(options["renameLayerOptions"]["exclude"], str),
         warn_when_not_type(["renameLayerOptions", "exclude"], list),
         warn_when_not_type(["renameLayerOptions", "shorten"], bool),
         warn_when_not_type(["renameLayerOptions", "replacePunctuation"], bool),
@@ -89,7 +97,10 @@ def validate_options():
         warn_when_not_type("renameTransformMaskOptions", dict),
         warn_when_not_type(["renameTransformMaskOptions", "include"], list),
         warn_when_not_type(["renameTransformMaskOptions", "exclude"], list),
-        warn_when_not_type(["renameTransformMaskOptions", "words"], list)])
+        warn_when_at_least_one_not_item_type(options["renameTransformMaskOptions"]["include"], str),
+        warn_when_at_least_one_not_item_type(options["renameTransformMaskOptions"]["exclude"], str),
+        warn_when_not_type(["renameTransformMaskOptions", "words"], list),
+        warn_when_at_least_one_not_item_type(options["renameTransformMaskOptions"]["words"], str),])
 
 def is_affected(layer, includes, excludes):
     is_included = any([re.match(include, layer) for include in includes])
